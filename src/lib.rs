@@ -8,17 +8,24 @@ use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, ReturnType, TraitIt
 
 #[proc_macro_attribute]
 pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let orig_trait: ItemTrait = match parse2(pm2_ts::from(item)) {
+    let stream = pm2_ts::from(item);
+    let orig_trait: ItemTrait = match parse2(stream.clone()) {
         Ok(item) => item,
-        Err(err) => return err.to_compile_error().into(),
+        Err(_) => {
+            return syn::Error::new_spanned(stream, "Only traits can be made object-safe")
+                .to_compile_error()
+                .into()
+        }
     };
 
     if let Some(where_clause) = orig_trait.generics.where_clause.clone() {
-        if check_self_sized(&where_clause) {
-            return quote::quote_spanned! {
-              where_clause.span() =>
-              compile_error!("Trait with Self: Sized trait bound cannot be made object-safe");
-            }
+        if let Some((_, pred)) = find_self_sized(&where_clause) {
+            // needed, since we don't require nightly (and cannot use `pred.span()` explicitly)
+            return syn::Error::new_spanned(
+                pred,
+                "Trait with Self: Sized trait bound cannot be made object-safe",
+            )
+            .to_compile_error()
             .into();
         }
     }
@@ -47,24 +54,55 @@ pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
         .map(|item| impl_trait_item(orig_trait_name.clone(), item));
 
     let output = quote! {
-      #orig_trait
-      #new_trait
+        #orig_trait
+        #new_trait
 
-      impl<T: #orig_trait_name> #new_trait_name for T {
-        #(#impl_items)*
-      }
+        impl<T: #orig_trait_name> #new_trait_name for T {
+            #(#impl_items)*
+        }
     };
     output.into()
 }
 
-fn check_self_sized(item: &syn::WhereClause) -> bool {
-    unimplemented!();
+fn find_self_sized(item: &syn::WhereClause) -> Option<(usize, &syn::WherePredicate)> {
+    item.predicates
+        .iter()
+        .enumerate()
+        .find(|(_, pred)| match pred {
+            syn::WherePredicate::Type(syn::PredicateType {
+                bounded_ty, bounds, ..
+            }) => bound_self(bounded_ty) && bounds.iter().any(bound_sized),
+            _ => false,
+        })
+}
+
+fn bound_self(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(syn::TypePath { path, .. }) => {
+            path.segments
+                .last()
+                .expect("Path in trait bound can't be empty")
+                .ident
+                .to_string()
+                == "Self".to_string()
+        }
+        _ => false,
+    }
+}
+fn bound_sized(bound: &syn::TypeParamBound) -> bool {
+    match bound {
+        syn::TypeParamBound::Trait(syn::TraitBound { path, .. }) => path
+            .segments
+            .iter()
+            .any(|item| item.ident.to_string() == "Sized".to_string()),
+        _ => false,
+    }
 }
 
 fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
     let sig = &item.sig;
     if let Some(where_clause) = &sig.generics.where_clause {
-        if check_self_sized(where_clause) {
+        if find_self_sized(where_clause).is_some() {
             return true;
         }
     }
@@ -91,10 +129,10 @@ fn impl_trait_item(orig_ident: Ident, trait_item: syn::TraitItem) -> syn::ImplIt
                 }
             });
             parse2(quote::quote_spanned! {
-              span =>
-              #(#attrs)* #sig {
-                <Self as #orig_ident>::#name(#(#inputs)*)
-              }
+                span =>
+                #(#attrs)* #sig {
+                    <Self as #orig_ident>::#name(#(#inputs)*)
+                }
             })
             .expect("Internal error, macro generated wrong code for method impl")
         }
