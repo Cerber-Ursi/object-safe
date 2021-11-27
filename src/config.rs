@@ -3,7 +3,7 @@ use syn::{
     Result, Token,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Config {
     allow_self_sized: bool,
     name: Option<String>,
@@ -11,12 +11,10 @@ pub struct Config {
 
 struct RawConfigAllowFirst {
     _allow_self_sized: AllowSelfSized,
-    _punct: Token![,],
     name: Option<Name>,
 }
 struct RawConfigNameFirst {
     name: Name,
-    _punct: Token![,],
     allow_self_sized: Option<AllowSelfSized>,
 }
 
@@ -80,10 +78,10 @@ impl Parse for RawConfigAllowFirst {
     fn parse(stream: ParseStream) -> Result<Self> {
         Ok(RawConfigAllowFirst {
             _allow_self_sized: stream.parse()?,
-            _punct: stream.parse()?,
             name: if stream.is_empty() {
                 None
             } else {
+                let _: Token![,] = stream.parse()?;
                 Some(stream.parse()?)
             },
         })
@@ -93,10 +91,10 @@ impl Parse for RawConfigNameFirst {
     fn parse(stream: ParseStream) -> Result<Self> {
         Ok(RawConfigNameFirst {
             name: stream.parse()?,
-            _punct: stream.parse()?,
             allow_self_sized: if stream.is_empty() {
                 None
             } else {
+                let _: Token![,] = stream.parse()?;
                 Some(stream.parse()?)
             },
         })
@@ -104,8 +102,9 @@ impl Parse for RawConfigNameFirst {
 }
 impl Parse for RawConfig {
     fn parse(stream: ParseStream) -> Result<Self> {
+        let streaf = stream.fork();
         match (
-            stream.parse::<RawConfigAllowFirst>(),
+            streaf.parse::<RawConfigAllowFirst>(),
             stream.parse::<RawConfigNameFirst>(),
         ) {
             (Ok(cfg), _) => Ok(RawConfig::AllowFirst(cfg)),

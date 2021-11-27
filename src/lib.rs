@@ -27,12 +27,20 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut new_trait = orig_trait.clone();
     let orig_trait_name = orig_trait.ident.clone();
-    
     if let Some(where_clause) = orig_trait.generics.where_clause.clone() {
-        if let (others, Some(pred)) = splice_self_sized(&where_clause) {
+        if let (Some(pred), others) = splice_self_sized(&where_clause) {
             if cfg.allow_self_sized() {
-                unimplemented!();
-                // new_trait.generics.where_clause.predicates = others.into_iter().collect();
+                new_trait.generics.where_clause =
+                    new_trait.generics.where_clause.and_then(|item| {
+                        if others.len() == 0 {
+                            None
+                        } else {
+                            Some(syn::WhereClause {
+                                predicates: others.clone().into_iter().collect(),
+                                ..item
+                            })
+                        }
+                    });
             } else {
                 // needed, since we don't require nightly (and cannot use `pred.span()` explicitly)
                 return syn::Error::new_spanned(
@@ -76,8 +84,11 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
     output.into()
 }
 
-fn splice_self_sized(item: &syn::WhereClause) -> (Vec<syn::WherePredicate>, Option<syn::WherePredicate>) {
-    let tmp = item.predicates
+fn splice_self_sized(
+    item: &syn::WhereClause,
+) -> (Option<syn::WherePredicate>, Vec<syn::WherePredicate>) {
+    let tmp: (Vec<_>, Vec<_>) = item
+        .predicates
         .iter()
         .cloned()
         .partition(|pred| match pred {
@@ -86,7 +97,7 @@ fn splice_self_sized(item: &syn::WhereClause) -> (Vec<syn::WherePredicate>, Opti
             }) => bound_self(bounded_ty) && bounds.iter().any(bound_sized),
             _ => false,
         });
-    (tmp.0, tmp.1.get(0).cloned())
+    (tmp.0.get(0).cloned(), tmp.1)
 }
 
 fn bound_self(ty: &syn::Type) -> bool {
@@ -115,7 +126,7 @@ fn bound_sized(bound: &syn::TypeParamBound) -> bool {
 fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
     let sig = &item.sig;
     if let Some(where_clause) = &sig.generics.where_clause {
-        if splice_self_sized(where_clause).1.is_some() {
+        if splice_self_sized(where_clause).0.is_some() {
             return true;
         }
     }
