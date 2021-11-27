@@ -1,0 +1,11 @@
+error: Trait with Self in supertrait generic parameters cannot be made object-safe
+ --> $DIR/super-self.rs:8:13
+  |
+8 | trait Test: Super<Self> {}
+  |             ^^^^^^^^^^^
+
+error: Trait with Self in supertrait generic parameters cannot be made object-safe
+  --> $DIR/super-self.rs:11:22
+   |
+11 | trait Test2: Debug + Super<Self> + Copy {}
+   |                      ^^^^^^^^^^^
