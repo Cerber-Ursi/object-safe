@@ -37,9 +37,7 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
                             let mut tt: tt_flatten::TokenStreamFlatten =
                                 quote::quote! { #args }.into();
                             tt.any(|item| match item {
-                                proc_macro2::TokenTree::Ident(ident) => {
-                                    ident.to_string() == "Self".to_string()
-                                }
+                                proc_macro2::TokenTree::Ident(ident) => ident == "Self",
                                 _ => false,
                             })
                         }
@@ -70,7 +68,7 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
             if cfg.allow_self_sized() {
                 new_trait.generics.where_clause =
                     new_trait.generics.where_clause.and_then(|item| {
-                        if others.len() == 0 {
+                        if others.is_empty() {
                             None
                         } else {
                             Some(syn::WhereClause {
@@ -145,18 +143,16 @@ fn bound_self(ty: &syn::Type) -> bool {
                 .last()
                 .expect("Path in trait bound can't be empty")
                 .ident
-                .to_string()
-                == "Self".to_string()
+                == "Self"
         }
         _ => false,
     }
 }
 fn bound_sized(bound: &syn::TypeParamBound) -> bool {
     match bound {
-        syn::TypeParamBound::Trait(syn::TraitBound { path, .. }) => path
-            .segments
-            .iter()
-            .any(|item| item.ident.to_string() == "Sized".to_string()),
+        syn::TypeParamBound::Trait(syn::TraitBound { path, .. }) => {
+            path.segments.iter().any(|item| item.ident == "Sized")
+        }
         _ => false,
     }
 }
@@ -182,7 +178,7 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
         // If all idents are not equal to "Self" - this will be object-safe
         // We don't try to traverse the type, we use raw token stream instead
         inputs.chain(stream).all(|item| match item {
-            proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
+            proc_macro2::TokenTree::Ident(ident) => ident != "Self",
             _ => true,
         })
     } else {

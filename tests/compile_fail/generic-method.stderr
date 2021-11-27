@@ -1,0 +1,16 @@
+error[E0599]: no method named `test` found for type `test::TestStruct` in the current scope
+  --> $DIR/generic-method.rs:22:10
+   |
+11 | pub struct TestStruct;
+   | ---------------------- method `test` not found for this
+...
+22 |     test.test();
+   |          ^^^^
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope, perhaps add a `use` for it:
+   |
+19 | use crate::test::Test;
+   |
+
+For more information about this error, try `rustc --explain E0599`.

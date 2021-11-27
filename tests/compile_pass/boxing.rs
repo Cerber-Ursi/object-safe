@@ -6,7 +6,7 @@ trait Test {
     fn generic<T: Copy>(&self, _: T) {}
     fn gets_self(&self, _: Self);
     fn returns_self(&self) -> Self;
-    fn object_safe(&self);
+    fn object_safe(&self) -> i32;
 }
 
 struct TestStruct;
@@ -18,10 +18,10 @@ impl Test for TestStruct {
     fn returns_self(&self) -> Self {
         TestStruct
     }
-    fn object_safe(&self) {}
+    fn object_safe(&self) -> i32 { 42 }
 }
 
 fn main() {
     let boxed: Box<dyn ObjectSafeTest> = Box::new(TestStruct);
-    boxed.object_safe();
+    assert_eq!(42, boxed.object_safe());
 }
