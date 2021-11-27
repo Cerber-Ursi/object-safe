@@ -10,6 +10,7 @@ mod config;
 mod tt_flatten;
 
 use config::Config;
+use darling::FromMeta;
 
 #[proc_macro_attribute]
 pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -53,7 +54,11 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
-    let cfg = syn::parse_macro_input!(attr as Config);
+    let attr_args = syn::parse_macro_input!(attr as syn::AttributeArgs);
+    let cfg = match Config::from_list(&attr_args) {
+        Ok(v) => v,
+        Err(e) => return e.write_errors().into(),
+    };
 
     let mut new_trait = orig_trait.clone();
     let orig_trait_name = orig_trait.ident.clone();

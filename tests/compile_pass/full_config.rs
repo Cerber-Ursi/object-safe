@@ -1,9 +1,9 @@
 use object_safe::object_safe;
 
-#[object_safe(allow_sized, name = Wrapper2)]
+#[object_safe(allow_sized, name = "Wrapper2")]
 trait Test2 where Self: Sized {}
 
-#[object_safe(name = Wrapper1, allow_sized)]
+#[object_safe(name = "Wrapper1", allow_sized)]
 trait Test1 where Self: Sized {}
 
 

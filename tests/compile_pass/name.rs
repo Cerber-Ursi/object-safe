@@ -1,6 +1,6 @@
 use object_safe::object_safe;
 
-#[object_safe(name = Wrapper)]
+#[object_safe(name = "Wrapper")]
 trait Test {}
 
 struct TestStruct;
