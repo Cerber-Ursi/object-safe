@@ -1,0 +1,35 @@
+error[E0038]: the trait `Test` cannot be made into an object
+  --> $DIR/orig_boxing.rs:25:16
+   |
+25 |     let boxed: Box<dyn Test> = Box::new(TestStruct);
+   |                ^^^^^^^^^^^^^ the trait `Test` cannot be made into an object
+   |
+   = note: method `assoc` has no receiver
+   = note: method `generic` has generic type parameters
+   = note: method `gets_self` references the `Self` type in its arguments or return type
+   = note: method `returns_self` references the `Self` type in its arguments or return type
+
+error[E0038]: the trait `Test` cannot be made into an object
+  --> $DIR/orig_boxing.rs:25:32
+   |
+25 |     let boxed: Box<dyn Test> = Box::new(TestStruct);
+   |                                ^^^^^^^^^^^^^^^^^^^^ the trait `Test` cannot be made into an object
+   |
+   = note: method `assoc` has no receiver
+   = note: method `generic` has generic type parameters
+   = note: method `gets_self` references the `Self` type in its arguments or return type
+   = note: method `returns_self` references the `Self` type in its arguments or return type
+   = note: required because of the requirements on the impl of `std::ops::CoerceUnsized<std::boxed::Box<dyn Test>>` for `std::boxed::Box<TestStruct>`
+
+error[E0038]: the trait `Test` cannot be made into an object
+  --> $DIR/orig_boxing.rs:26:5
+   |
+26 |     boxed.object_safe();
+   |     ^^^^^^^^^^^^^^^^^^^ the trait `Test` cannot be made into an object
+   |
+   = note: method `assoc` has no receiver
+   = note: method `generic` has generic type parameters
+   = note: method `gets_self` references the `Self` type in its arguments or return type
+   = note: method `returns_self` references the `Self` type in its arguments or return type
+
+For more information about this error, try `rustc --explain E0038`.
