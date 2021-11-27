@@ -1,15 +1,20 @@
-#[object_safe::object_safe]
-trait Test {
-  fn test(&self);
-}
+mod traits {
 
-struct TestStruct;
+  #[object_safe::object_safe]
+  pub trait Test {
+    fn test(&self);
+  }
 
-impl Test for TestStruct {
-  fn test(&self) {
-    println!("It did not crash!");
+  pub struct TestStruct;
+
+  impl Test for TestStruct {
+    fn test(&self) {
+      println!("It did not crash!");
+    }
   }
 }
+
+use traits::{ObjectSafeTest, TestStruct};
 
 #[test]
 fn works() {
