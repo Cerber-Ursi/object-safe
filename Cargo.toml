@@ -1,7 +1,7 @@
 [package]
 name = "object-safe"
 version = "0.1.0"
-authors = ["Cerberuser"]
+authors = ["Cerber Ursi <dev+rust@cerbe.ru>"]
 edition = "2018"
 
 [lib]
