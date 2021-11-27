@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as pm2_ts;
 
 use quote::quote;
-use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, ReturnType, TraitItem::*};
+use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, TraitItem::*};
 
 mod tt_flatten;
 
@@ -105,6 +105,9 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
             return true;
         }
     }
+    if !sig.generics.params.is_empty() {
+        return false;
+    }
     if let Some(FnArg::Receiver(_)) = sig.inputs.first() {
         let inputs = sig.inputs.clone();
         let inputs: tt_flatten::TokenStreamFlatten = quote! { #inputs }.into();
@@ -115,10 +118,13 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
         let stream: tt_flatten::TokenStreamFlatten = quote! { #return_type }.into();
         // If all idents are not equal to "Self" - this will be object-safe
         // We don't try to traverse the type, we use raw token stream instead
-        inputs.chain(stream).inspect(|item| println!("{}", item.to_string())).all(|item| match item {
-            proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
-            _ => true,
-        })
+        inputs
+            .chain(stream)
+            .inspect(|item| println!("{}", item.to_string()))
+            .all(|item| match item {
+                proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
+                _ => true,
+            })
     } else {
         // no receiver - not object-safe
         false
