@@ -7,5 +7,5 @@ struct TestStruct;
 impl Test for TestStruct {}
 
 fn main() {
-    let _: Box<ObjectSafeTest> = Box::new(TestStruct);
+    let _: Box<dyn ObjectSafeTest> = Box::new(TestStruct);
 }
