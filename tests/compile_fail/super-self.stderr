@@ -9,3 +9,9 @@ error: Trait with Self in supertrait generic parameters cannot be made object-sa
    |
 11 | trait Test2: Debug + Super<Self> + Copy {}
    |                      ^^^^^^^^^^^
+
+error: Trait with Self in supertrait generic parameters cannot be made object-safe
+  --> $DIR/super-self.rs:14:14
+   |
+14 | trait Test3: Super<dyn Fn(Self)> {}
+   |              ^^^^^^^^^^^^^^^^^^^
