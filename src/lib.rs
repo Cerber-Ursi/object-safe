@@ -7,9 +7,12 @@ use quote::quote;
 use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, TraitItem::*};
 
 mod tt_flatten;
+mod config;
+
+use config::Config;
 
 #[proc_macro_attribute]
-pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
     let stream = pm2_ts::from(item);
     let orig_trait: ItemTrait = match parse2(stream.clone()) {
         Ok(item) => item,
@@ -20,8 +23,11 @@ pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
+    let cfg = syn::parse_macro_input!(attr as Config);
+
     if let Some(where_clause) = orig_trait.generics.where_clause.clone() {
         if let Some((_, pred)) = find_self_sized(&where_clause) {
+            if !cfg.allow_self_sized() {
             // needed, since we don't require nightly (and cannot use `pred.span()` explicitly)
             return syn::Error::new_spanned(
                 pred,
@@ -29,6 +35,7 @@ pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
             )
             .to_compile_error()
             .into();
+            }
         }
     }
 
