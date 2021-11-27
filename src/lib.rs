@@ -27,22 +27,25 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Some(bound) = orig_trait.supertraits.iter().find(|bound| {
         use syn::TypeParamBound::*;
         match bound {
-            Trait(bound) => bound
-                .path
-                .segments
-                .iter()
-                .any(|segment| match segment.arguments.clone() {
-                    syn::PathArguments::AngleBracketed(args) => {
-                        let mut tt: tt_flatten::TokenStreamFlatten = quote::quote! { #args }.into();
-                        tt.any(|item| match item {
-                            proc_macro2::TokenTree::Ident(ident) => {
-                                ident.to_string() == "Self".to_string()
-                            }
-                            _ => false,
-                        })
-                    },
-                    _ => false,
-                }),
+            Trait(bound) => {
+                bound
+                    .path
+                    .segments
+                    .iter()
+                    .any(|segment| match segment.arguments.clone() {
+                        syn::PathArguments::AngleBracketed(args) => {
+                            let mut tt: tt_flatten::TokenStreamFlatten =
+                                quote::quote! { #args }.into();
+                            tt.any(|item| match item {
+                                proc_macro2::TokenTree::Ident(ident) => {
+                                    ident.to_string() == "Self".to_string()
+                                }
+                                _ => false,
+                            })
+                        }
+                        _ => false,
+                    })
+            }
             Lifetime(_) => false,
         }
     }) {

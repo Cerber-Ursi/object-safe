@@ -16,5 +16,3 @@ impl Config {
         self.name.as_ref().map(darling::util::IdentString::as_str)
     }
 }
-
-
