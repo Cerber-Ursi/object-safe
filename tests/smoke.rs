@@ -5,7 +5,7 @@ trait Test {
 
 struct TestStruct;
 
-impl ObjectSafe_Test for TestStruct {
+impl Test for TestStruct {
   fn test(&self) {
     println!("It did not crash!");
   }
