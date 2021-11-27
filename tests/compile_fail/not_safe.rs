@@ -2,6 +2,8 @@ use object_safe::object_safe;
 
 mod details {
 
+    use object_safe::object_safe;
+
     #[object_safe]
     pub trait NonObjectSafe {
         fn generic<T: Copy>(&self, _: T);

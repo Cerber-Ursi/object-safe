@@ -120,7 +120,6 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
         // We don't try to traverse the type, we use raw token stream instead
         inputs
             .chain(stream)
-            .inspect(|item| println!("{}", item.to_string()))
             .all(|item| match item {
                 proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
                 _ => true,
