@@ -36,12 +36,14 @@ pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
     _ => false,
   });
 
+  let impl_items = new_trait.items.iter().cloned().map(|item| impl_trait_item(orig_trait_name.clone(), item));
+
   let output = quote! {
     #orig_trait
     #new_trait
 
     impl<T: #orig_trait_name> #new_trait_name for T {
-
+      #(#impl_items)*
     }
   };
   output.into()
@@ -64,5 +66,31 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
     unimplemented!()
   } else {
     true
+  }
+}
+
+fn impl_trait_item(orig_ident: Ident, trait_item: syn::TraitItem) -> syn::ImplItemMethod {
+  let span = trait_item.span().clone();
+  match trait_item {
+    Method(item) => {
+      let syn::TraitItemMethod { attrs, sig, .. } = item;
+      let name = sig.ident.clone();
+      let inputs = sig.inputs.clone().into_iter().map(|item| {
+        match item {
+          FnArg::Receiver(_) => quote!{ self },
+          FnArg::Typed(pat) => {
+            let pat = pat.pat;
+            quote!{ #pat }
+          }
+        }
+      });
+      parse2(quote::quote_spanned! {
+        span =>
+        #(#attrs)* #sig {
+          <Self as #orig_ident>::#name(#(#inputs)*)
+        }
+      }).expect("Internal error, macro generated wrong code for method impl")
+    },
+    _ => unreachable!(),
   }
 }
