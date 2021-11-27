@@ -6,6 +6,8 @@ use proc_macro2::TokenStream as pm2_ts;
 use quote::quote;
 use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, ReturnType, TraitItem::*};
 
+mod tt_flatten;
+
 #[proc_macro_attribute]
 pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let stream = pm2_ts::from(item);
@@ -33,10 +35,7 @@ pub fn object_safe(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut new_trait = orig_trait.clone();
     let orig_trait_name = orig_trait.ident.clone();
 
-    let new_trait_name = Ident::new(
-        &format!("ObjectSafe{}", orig_trait_name),
-        orig_trait_name.span(),
-    );
+    let new_trait_name = quote::format_ident!("ObjectSafe{}", orig_trait_name);
     new_trait.ident = new_trait_name.clone();
     new_trait.items.retain(|item| match item {
         Const(_) => false,
@@ -106,12 +105,23 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
             return true;
         }
     }
-    if let Some(FnArg::Typed(_)) = sig.inputs.first() {
-        false
-    } else if let ReturnType::Type(_, return_type) = &sig.output {
-        unimplemented!()
+    if let Some(FnArg::Receiver(_)) = sig.inputs.first() {
+        let inputs = sig.inputs.clone();
+        let inputs: tt_flatten::TokenStreamFlatten = quote! { #inputs }.into();
+        let return_type = match &sig.output {
+            syn::ReturnType::Type(_, ty) => Some(ty),
+            _ => None,
+        };
+        let stream: tt_flatten::TokenStreamFlatten = quote! { #return_type }.into();
+        // If all idents are not equal to "Self" - this will be object-safe
+        // We don't try to traverse the type, we use raw token stream instead
+        inputs.chain(stream).inspect(|item| println!("{}", item.to_string())).all(|item| match item {
+            proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
+            _ => true,
+        })
     } else {
-        true
+        // no receiver - not object-safe
+        false
     }
 }
 
@@ -131,7 +141,7 @@ fn impl_trait_item(orig_ident: Ident, trait_item: syn::TraitItem) -> syn::ImplIt
             parse2(quote::quote_spanned! {
                 span =>
                 #(#attrs)* #sig {
-                    <Self as #orig_ident>::#name(#(#inputs)*)
+                    <Self as #orig_ident>::#name(#(#inputs),*)
                 }
             })
             .expect("Internal error, macro generated wrong code for method impl")
