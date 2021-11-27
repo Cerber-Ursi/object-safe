@@ -6,8 +6,8 @@ use proc_macro2::TokenStream as pm2_ts;
 use quote::quote;
 use syn::{parse2, spanned::Spanned, FnArg, Ident, ItemTrait, TraitItem::*};
 
-mod tt_flatten;
 mod config;
+mod tt_flatten;
 
 use config::Config;
 
@@ -25,24 +25,30 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let cfg = syn::parse_macro_input!(attr as Config);
 
+    let mut new_trait = orig_trait.clone();
+    let orig_trait_name = orig_trait.ident.clone();
+    
     if let Some(where_clause) = orig_trait.generics.where_clause.clone() {
-        if let Some((_, pred)) = find_self_sized(&where_clause) {
-            if !cfg.allow_self_sized() {
-            // needed, since we don't require nightly (and cannot use `pred.span()` explicitly)
-            return syn::Error::new_spanned(
-                pred,
-                "Trait with Self: Sized trait bound cannot be made object-safe",
-            )
-            .to_compile_error()
-            .into();
+        if let (others, Some(pred)) = splice_self_sized(&where_clause) {
+            if cfg.allow_self_sized() {
+                unimplemented!();
+                // new_trait.generics.where_clause.predicates = others.into_iter().collect();
+            } else {
+                // needed, since we don't require nightly (and cannot use `pred.span()` explicitly)
+                return syn::Error::new_spanned(
+                    pred,
+                    "Trait with Self: Sized trait bound cannot be made object-safe",
+                )
+                .to_compile_error()
+                .into();
             }
         }
     }
 
-    let mut new_trait = orig_trait.clone();
-    let orig_trait_name = orig_trait.ident.clone();
-
-    let new_trait_name = quote::format_ident!("ObjectSafe{}", orig_trait_name);
+    let new_trait_name = match cfg.name() {
+        Some(name) => quote::format_ident!("{}", name),
+        None => quote::format_ident!("ObjectSafe{}", orig_trait_name),
+    };
     new_trait.ident = new_trait_name.clone();
     new_trait.items.retain(|item| match item {
         Const(_) => false,
@@ -70,16 +76,17 @@ pub fn object_safe(attr: TokenStream, item: TokenStream) -> TokenStream {
     output.into()
 }
 
-fn find_self_sized(item: &syn::WhereClause) -> Option<(usize, &syn::WherePredicate)> {
-    item.predicates
+fn splice_self_sized(item: &syn::WhereClause) -> (Vec<syn::WherePredicate>, Option<syn::WherePredicate>) {
+    let tmp = item.predicates
         .iter()
-        .enumerate()
-        .find(|(_, pred)| match pred {
+        .cloned()
+        .partition(|pred| match pred {
             syn::WherePredicate::Type(syn::PredicateType {
                 bounded_ty, bounds, ..
             }) => bound_self(bounded_ty) && bounds.iter().any(bound_sized),
             _ => false,
-        })
+        });
+    (tmp.0, tmp.1.get(0).cloned())
 }
 
 fn bound_self(ty: &syn::Type) -> bool {
@@ -108,7 +115,7 @@ fn bound_sized(bound: &syn::TypeParamBound) -> bool {
 fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
     let sig = &item.sig;
     if let Some(where_clause) = &sig.generics.where_clause {
-        if find_self_sized(where_clause).is_some() {
+        if splice_self_sized(where_clause).1.is_some() {
             return true;
         }
     }
@@ -125,12 +132,10 @@ fn check_obj_safe(item: &syn::TraitItemMethod) -> bool {
         let stream: tt_flatten::TokenStreamFlatten = quote! { #return_type }.into();
         // If all idents are not equal to "Self" - this will be object-safe
         // We don't try to traverse the type, we use raw token stream instead
-        inputs
-            .chain(stream)
-            .all(|item| match item {
-                proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
-                _ => true,
-            })
+        inputs.chain(stream).all(|item| match item {
+            proc_macro2::TokenTree::Ident(ident) => ident.to_string() != "Self".to_string(),
+            _ => true,
+        })
     } else {
         // no receiver - not object-safe
         false
