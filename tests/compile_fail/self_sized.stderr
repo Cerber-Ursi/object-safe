@@ -1,0 +1,5 @@
+error: Trait with Self: Sized trait bound cannot be made object-safe
+ --> $DIR/self_sized.rs:4:23
+  |
+4 | trait SelfSized where Self: Sized {}
+  |                       ^^^^^^^^^^^
